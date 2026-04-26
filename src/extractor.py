@@ -140,28 +140,58 @@ def _looks_like_date_fragment(value: str, all_text: str) -> bool:
     return bool(re.search(pattern, all_text))
 
 
-def _merge_lines_into_rows(lines: List[Dict], y_tolerance: int = 18) -> List[Dict]:
+def _bbox_y_range(bbox) -> Tuple[float, float]:
+    """Return (y_top, y_bottom) of a bbox."""
+    if not bbox:
+        return 0.0, 0.0
+    ys = [pt[1] for pt in bbox]
+    return min(ys), max(ys)
+
+
+def _vertically_overlap(a: Dict, b: Dict, min_overlap: float = 0.4) -> bool:
+    """
+    True if two detections overlap vertically by at least `min_overlap`
+    fraction of the smaller line's height. This is more reliable than
+    y_center proximity for tightly-spaced rows.
+    """
+    a_top, a_bot = _bbox_y_range(a.get("bbox"))
+    b_top, b_bot = _bbox_y_range(b.get("bbox"))
+    if a_bot <= a_top or b_bot <= b_top:
+        return False
+    inter = max(0.0, min(a_bot, b_bot) - max(a_top, b_top))
+    smaller_h = min(a_bot - a_top, b_bot - b_top)
+    return (inter / smaller_h) >= min_overlap
+
+
+def _merge_lines_into_rows(lines: List[Dict]) -> List[Dict]:
     """
     Receipts are columnar layouts — OCR often splits 'BANANAS  0.20' into two
-    separate detections. Merge detections that share the same horizontal row.
+    separate detections. Merge detections whose bounding boxes share enough
+    vertical overlap (≥40% of the smaller line's height).
 
     Returns a list of {text, confidence, y_center} where text is the joined
     row content, sorted left-to-right.
     """
     if not lines:
         return []
-    # Group lines by y-coordinate proximity
     sorted_lines = sorted(lines, key=lambda l: l["y_center"])
     rows: List[List[Dict]] = []
     for line in sorted_lines:
-        if rows and abs(line["y_center"] - rows[-1][0]["y_center"]) <= y_tolerance:
-            rows[-1].append(line)
-        else:
+        # Try to attach to the LAST row only if bboxes vertically overlap
+        attached = False
+        if rows:
+            # Check overlap with any element of the last row (some elements may
+            # be slightly higher/lower than others)
+            for other in rows[-1]:
+                if _vertically_overlap(line, other):
+                    rows[-1].append(line)
+                    attached = True
+                    break
+        if not attached:
             rows.append([line])
 
     merged = []
     for row in rows:
-        # Sort items in this row left-to-right by bbox x
         row_sorted = sorted(row, key=lambda l: l["bbox"][0][0] if l.get("bbox") else 0)
         text = " ".join(l["text"] for l in row_sorted)
         conf = float(np.mean([l["confidence"] for l in row_sorted]))
@@ -321,49 +351,276 @@ def extract_total(lines: List[Dict]) -> Optional[Tuple[str, float]]:
     return None
 
 
+def _find_value_after_keyword(text: str, keywords: list, full_text: str,
+                               max_value: float = 1_000_000) -> Optional[float]:
+    """
+    Find the FIRST decimal price that appears immediately after one of the
+    given keywords in `text`. Avoids picking up later prices that belong to
+    different fields (e.g., picking TAX value when looking for SUBTOTAL).
+    """
+    text_lower = text.lower()
+    earliest_pos = None
+    matched_keyword = None
+    for kw in keywords:
+        pos = text_lower.find(kw)
+        if pos != -1 and (earliest_pos is None or pos < earliest_pos):
+            earliest_pos = pos
+            matched_keyword = kw
+    if earliest_pos is None:
+        return None
+    # Search the region right after the keyword
+    after = text[earliest_pos + len(matched_keyword):]
+    m = DECIMAL_CURRENCY_RE.search(after)
+    if not m:
+        return None
+    price_str = m.group(1)
+    if _looks_like_date_fragment(price_str, full_text):
+        return None
+    parsed = _parse_amount(price_str)
+    if parsed and 0.01 <= parsed < max_value:
+        return parsed
+    return None
+
+
+def _find_keyword_value_with_bbox(lines: List[Dict], keywords: list,
+                                   full_text: str,
+                                   max_value: float = 1_000_000
+                                   ) -> Optional[Tuple[float, float]]:
+    """
+    For each line containing a keyword, find a value in the SAME ROW
+    by matching bbox y-ranges (right-column lookup).
+
+    Returns (value, confidence) or None.
+    """
+    # Find lines containing any keyword (left column)
+    for kw_line in lines:
+        text_lower = kw_line["text"].lower()
+        kw_match = None
+        for kw in keywords:
+            if kw in text_lower:
+                kw_match = kw
+                break
+        if not kw_match:
+            continue
+        # Skip false positives
+        if "invoice" in text_lower or "exempt" in text_lower:
+            continue
+
+        # First check if there's a decimal value already in this same line
+        text = kw_line["text"]
+        kw_pos = text_lower.find(kw_match)
+        after = text[kw_pos + len(kw_match):]
+        m = DECIMAL_CURRENCY_RE.search(after)
+        if m:
+            price_str = m.group(1)
+            if not _looks_like_date_fragment(price_str, full_text):
+                parsed = _parse_amount(price_str)
+                if parsed and 0.01 <= parsed < max_value:
+                    return parsed, kw_line["confidence"]
+
+        # Look at OTHER lines that vertically overlap, are to the RIGHT,
+        # and pick the one with y_center CLOSEST to the keyword (handles
+        # tightly-packed rows where multiple values overlap).
+        kw_x_end = max(pt[0] for pt in kw_line["bbox"]) if kw_line.get("bbox") else 0
+        kw_y     = kw_line["y_center"]
+        candidates = []
+        for other in lines:
+            if other is kw_line:
+                continue
+            if not _vertically_overlap(kw_line, other, min_overlap=0.4):
+                continue
+            other_x_start = min(pt[0] for pt in other["bbox"]) if other.get("bbox") else 0
+            if other_x_start < kw_x_end:
+                continue
+            m = DECIMAL_CURRENCY_RE.search(other["text"])
+            if not m:
+                continue
+            price_str = m.group(1)
+            if _looks_like_date_fragment(price_str, full_text):
+                continue
+            parsed = _parse_amount(price_str)
+            if parsed is None or not (0.01 <= parsed < max_value):
+                continue
+            y_dist = abs(other["y_center"] - kw_y)
+            candidates.append((y_dist, parsed, other["confidence"]))
+
+        if candidates:
+            candidates.sort(key=lambda c: c[0])
+            _, val, conf = candidates[0]
+            return val, conf
+    return None
+
+
+def extract_subtotal(lines: List[Dict]) -> Optional[Tuple[str, float]]:
+    """Find subtotal using bbox-aware right-column lookup."""
+    full_text = " ".join(l["text"] for l in lines)
+    res = _find_keyword_value_with_bbox(
+        lines, ["subtotal", "sub total", "sub-total"], full_text)
+    if res:
+        val, conf = res
+        return f"{val:.2f}", conf * 0.92
+    return None
+
+
+def extract_tax(lines: List[Dict]) -> Optional[Tuple[str, float]]:
+    """Find tax / GST / VAT using bbox-aware right-column lookup."""
+    full_text = " ".join(l["text"] for l in lines)
+    # Order matters — match longer keywords first to avoid 'tax' matching inside 'service tax'
+    keywords = ["service tax", "cgst", "sgst", "igst", "gst", "vat", "tax"]
+    res = _find_keyword_value_with_bbox(lines, keywords, full_text,
+                                          max_value=100_000)
+    if res:
+        val, conf = res
+        return f"{val:.2f}", conf * 0.90
+    return None
+
+
+CATEGORY_KEYWORDS = {
+    "Groceries":   ["walmart", "supermarket", "supercenter", "grocery", "kroger",
+                    "trader", "whole foods", "safeway", "tesco", "sainsbury",
+                    "big bazaar", "dmart", "reliance fresh", "more", "spar",
+                    "lidl", "aldi", "carrefour", "costco"],
+    "Dining":      ["restaurant", "cafe", "coffee", "starbucks", "pizza",
+                    "mcdonald", "kfc", "subway", "burger", "barbeque", "bistro",
+                    "diner", "kitchen", "grill", "tea", "chai", "bakery",
+                    "domino", "chipotle"],
+    "Transport":   ["uber", "lyft", "ola", "taxi", "rapido", "metro",
+                    "indian oil", "iocl", "bpcl", "hpcl", "shell", "fuel",
+                    "petrol", "diesel", "gas station", "parking", "toll"],
+    "Office":      ["office depot", "staples", "stationery", "supplies",
+                    "printing", "xerox", "ricoh"],
+    "Utilities":   ["electric", "electricity", "water", "internet", "telecom",
+                    "airtel", "jio", "vodafone", "bsnl", "vi ", "verizon",
+                    "comcast", "at&t"],
+    "Travel":      ["airline", "indigo", "spicejet", "vistara", "delta",
+                    "united", "emirates", "hotel", "marriott", "hilton",
+                    "hyatt", "oyo", "airbnb", "irctc", "amtrak"],
+    "Healthcare":  ["pharmacy", "clinic", "hospital", "medical", "apollo",
+                    "fortis", "max healthcare", "cvs", "walgreens"],
+    "Software":    ["software", "license", "subscription", "saas", "github",
+                    "aws", "azure", "google cloud", "microsoft", "adobe"],
+    "Retail":      ["amazon", "flipkart", "myntra", "best buy", "target",
+                    "ikea", "zara", "h&m", "nike"],
+}
+
+
+def detect_category(store_name: str, full_text: str) -> Tuple[str, float]:
+    """
+    Classify the receipt into a spending category based on store name + text.
+    Returns (category, confidence) — confidence reflects how strong the match is.
+    """
+    haystack = f"{store_name} {full_text}".lower()
+    scores: Dict[str, int] = {}
+    for cat, keywords in CATEGORY_KEYWORDS.items():
+        hits = sum(1 for kw in keywords if kw in haystack)
+        if hits > 0:
+            scores[cat] = hits
+    if not scores:
+        return "Uncategorized", 0.0
+    best = max(scores.items(), key=lambda x: x[1])
+    cat, hits = best
+    # Confidence scales with hits, capped at 0.95
+    conf = min(0.95, 0.55 + 0.15 * hits)
+    return cat, conf
+
+
+def detect_currency(lines: List[Dict]) -> Tuple[str, str]:
+    """
+    Detect the currency used.
+    Returns (symbol, code) e.g. ('₹', 'INR'), ('$', 'USD'), ('€', 'EUR').
+    """
+    full_text = " ".join(l["text"] for l in lines)
+    full_lower = full_text.lower()
+
+    # Symbols (most reliable)
+    if "₹" in full_text:                                         return "₹", "INR"
+    if "€" in full_text:                                         return "€", "EUR"
+    if "£" in full_text:                                         return "£", "GBP"
+    if "¥" in full_text:                                         return "¥", "JPY"
+
+    # Codes
+    if re.search(r"\bRM\b|ringgit", full_text):                  return "RM", "MYR"
+    if re.search(r"\bINR\b|rupee", full_lower):                  return "₹", "INR"
+    if re.search(r"\bRs\.?\b", full_text):                       return "₹", "INR"
+    if re.search(r"\bUSD\b|us\s*dollar", full_lower):            return "$", "USD"
+    if re.search(r"\bEUR\b|euro", full_lower):                   return "€", "EUR"
+    if re.search(r"\bGBP\b|pound", full_lower):                  return "£", "GBP"
+    if re.search(r"\bSGD\b|singapore\s*dollar", full_lower):     return "S$", "SGD"
+
+    # Country-specific store hints
+    if re.search(r"walmart|target|costco|cvs|walgreens", full_lower):  return "$", "USD"
+    if re.search(r"big\s*bazaar|reliance|dmart|tata", full_lower):     return "₹", "INR"
+
+    # Default: dollar (most international)
+    if "$" in full_text:                                         return "$", "USD"
+    return "$", "USD"
+
+
 def extract_items(lines: List[Dict]) -> List[Dict]:
     """
-    Extract line-items.
+    Extract line-items using row-merged OCR output.
 
-    A line is treated as an item if:
-      - It does NOT contain any summary / header / footer keyword
-      - It matches "<text> <decimal-price>" pattern
-      - The text portion has at least 3 alpha chars and isn't a code/SKU
+    Receipts are columnar — OCR often splits 'BANANAS' (left) and '0.20' (right)
+    into two separate detections. We first merge by y-coordinate, THEN look for
+    the '<text> ... <decimal-price>' pattern.
     """
+    merged = _merge_lines_into_rows(lines)
+    full_text = " ".join(l["text"] for l in merged)
     items = []
-    for line in lines:
+
+    for line in merged:
         text = line["text"].strip()
         text_lower = text.lower()
 
-        # Skip summary / header / footer lines
+        # Skip summary / header / footer
         if any(k in text_lower for k in ITEM_SKIP_KEYWORDS):
             continue
+        # Skip noisy code rows
+        if re.search(r"\d{6,}", text):           continue
+        if re.search(r"[A-Z]{2,}\d{4,}", text):  continue
 
-        m = PRICE_LINE_RE.match(text)
-        if not m:
+        # Looser pattern: row contains a decimal price somewhere
+        price_matches = list(DECIMAL_CURRENCY_RE.finditer(text))
+        if not price_matches:
             continue
 
-        name = m.group(1).strip()
-        price_raw = m.group(2)
+        # Take the LAST decimal value as the price (rightmost = price column)
+        last = price_matches[-1]
+        price_raw = last.group(1)
+        if _looks_like_date_fragment(price_raw, full_text):
+            continue
         price = _parse_amount(price_raw)
+        if price is None or not (0.01 <= price <= 10_000):
+            continue
 
-        # Quality filters on the name part
+        # Name is everything BEFORE the price
+        name = text[:last.start()].strip().rstrip(":-").strip()
+
+        # Quality filters on the name
         alpha_count = sum(1 for c in name if c.isalpha())
-        if alpha_count < 3 or price is None or price <= 0:
-            continue
-        if len(name) > 80:
-            continue
-        # Skip if name is dominated by codes (e.g. "ST# 5748 OP# 00000158 TE# 14 TR#")
-        if _alpha_ratio(name) < 0.4:
-            continue
-        # Skip lines with too many '#' or ':' — usually transaction codes
-        if name.count("#") >= 2 or name.count(":") >= 2:
-            continue
+        if alpha_count < 3:                    continue
+        if len(name) > 80:                     continue
+        if _alpha_ratio(name) < 0.35:          continue
+        if name.count("#") >= 2:               continue
+        if name.count(":") >= 2:               continue
+
+        # Try to extract quantity from the name (e.g. "2 x Milk" or "Milk 2")
+        qty = 1
+        qty_match = re.match(r"^\s*(\d{1,3})\s*[xX]?\s+(.+)$", name)
+        if qty_match:
+            try:
+                possible_qty = int(qty_match.group(1))
+                if 1 <= possible_qty <= 99:   # plausible quantity
+                    qty = possible_qty
+                    name = qty_match.group(2).strip()
+            except ValueError:
+                pass
 
         items.append({
-            "name": name,
-            "price": f"{price:.2f}",
-            "confidence": line["confidence"] * 0.78,
+            "description": name,
+            "quantity":    qty,
+            "price":       f"{price:.2f}",
+            "confidence":  line["confidence"] * 0.78,
         })
 
     return items
