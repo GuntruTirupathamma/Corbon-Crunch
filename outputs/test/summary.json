@@ -1,0 +1,18 @@
+{
+  "total_transactions_processed": 1,
+  "successful_extractions": 1,
+  "failed_extractions": 0,
+  "receipts_with_total_amount": 1,
+  "low_confidence_receipt_count": 1,
+  "total_spend": 6485.78,
+  "average_transaction": 6485.78,
+  "spend_per_store": {
+    "WAL-MART": {
+      "total": 6485.78,
+      "transactions": 1,
+      "average": 6485.78
+    }
+  },
+  "max_single_transaction": 6485.78,
+  "min_single_transaction": 6485.78
+}

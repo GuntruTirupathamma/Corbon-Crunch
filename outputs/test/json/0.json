@@ -1,0 +1,39 @@
+{
+  "file": "0.jpg",
+  "store_name": {
+    "value": "WAL-MART",
+    "confidence": 0.959
+  },
+  "date": {
+    "value": "13.12.01",
+    "confidence": 0.866
+  },
+  "items": [],
+  "total_amount": {
+    "value": "6485.78",
+    "confidence": 0.056
+  },
+  "low_confidence_flags": [
+    "total_amount"
+  ],
+  "metadata": {
+    "ocr_lines_detected": 53,
+    "average_ocr_confidence": 0.806,
+    "preprocessing": {
+      "blur_score": 1544.69,
+      "brightness": 125.74,
+      "skew_angle": 0.0,
+      "original_shape": [
+        1023,
+        612,
+        3
+      ],
+      "processed_shape": [
+        1500,
+        897,
+        3
+      ]
+    }
+  },
+  "raw_ocr_text": "WAL-MART\nALWAYS Low PRICES_\nAlwene\nSUPERCENTER\nOPEN 24 HOURS\nTBA\nMANAGER\n\"986\n515\n1783\nST# 5748 OP# 00000158 TE# 14 TR# 03178\n000000004011KF\nBANANAS\n0.41\nIb\n1\nIb /0.49\n0.20\nN\n001200010451\nFRAP\nF\n5.48\nDISCOUNT  GIVEN\n57\nSUBIOTAL\ng\n11\nTOTAL\n11\nCASH\nTEND\n11.00\nCHANGE' DUE\n5.89\n# ITEMS SOLD\n2\nITC567948348 .6485.7828.2003\nTHANK You ECR SHOPPING WITH Us\nNATHANiEL' Busti\nShop\nat\nValmart\n8\nGet\nYour\nBack\nto\nSchooi\nList\nfor Less_\n08720710\n13.12.01"
+}

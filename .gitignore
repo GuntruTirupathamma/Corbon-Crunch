@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+data/receipts/*
+!data/receipts/.gitkeep
+outputs/json/*
+!outputs/json/.gitkeep
+outputs/preview/*
+!outputs/preview/.gitkeep
+.env
+.DS_Store

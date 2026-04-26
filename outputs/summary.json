@@ -1,0 +1,243 @@
+{
+  "total_transactions_processed": 50,
+  "successful_extractions": 50,
+  "failed_extractions": 0,
+  "receipts_with_total_amount": 50,
+  "low_confidence_receipt_count": 50,
+  "total_spend": 93645.2,
+  "average_transaction": 1872.9,
+  "spend_per_store": {
+    "CzhJzH)": {
+      "total": 30032.0,
+      "transactions": 1,
+      "average": 30032.0
+    },
+    "RESTORAN WAN SHENG": {
+      "total": 15224.0,
+      "transactions": 1,
+      "average": 15224.0
+    },
+    "LIAN CHI PU TIAN VEGETARIAN": {
+      "total": 9016.0,
+      "transactions": 1,
+      "average": 9016.0
+    },
+    "WALAMART": {
+      "total": 3365.0,
+      "transactions": 1,
+      "average": 3365.0
+    },
+    "SYARIKAT PERNIAGAAN GIN KEE": {
+      "total": 2760.0,
+      "transactions": 3,
+      "average": 920.0
+    },
+    "tan woon yann": {
+      "total": 1804.0,
+      "transactions": 2,
+      "average": 902.0
+    },
+    "LIGHTROOM GALLERY  SDN  BHD": {
+      "total": 1776.0,
+      "transactions": 2,
+      "average": 888.0
+    },
+    "ASO ELECTRICAL TRADING SDN BHD": {
+      "total": 1613.0,
+      "transactions": 1,
+      "average": 1613.0
+    },
+    "POPULAR Book": {
+      "total": 992.0,
+      "transactions": 1,
+      "average": 992.0
+    },
+    "RESTORAN IBRAHIM MAJU SB": {
+      "total": 992.0,
+      "transactions": 1,
+      "average": 992.0
+    },
+    "Euerdiah": {
+      "total": 987.0,
+      "transactions": 1,
+      "average": 987.0
+    },
+    "WAL-MART": {
+      "total": 986.0,
+      "transactions": 1,
+      "average": 986.0
+    },
+    "SAINT HEART PASTRY": {
+      "total": 980.0,
+      "transactions": 1,
+      "average": 980.0
+    },
+    "ROCKU": {
+      "total": 975.0,
+      "transactions": 1,
+      "average": 975.0
+    },
+    "Winco": {
+      "total": 955.0,
+      "transactions": 1,
+      "average": 955.0
+    },
+    "PERNIAGAAN ZHENG HUI": {
+      "total": 955.0,
+      "transactions": 1,
+      "average": 955.0
+    },
+    "SDN  BHD": {
+      "total": 955.0,
+      "transactions": 1,
+      "average": 955.0
+    },
+    "HAPPY SNACKS ENTERPRISE": {
+      "total": 955.0,
+      "transactions": 1,
+      "average": 955.0
+    },
+    "(MiNIn YoU": {
+      "total": 955.0,
+      "transactions": 1,
+      "average": 955.0
+    },
+    "D.I.Y. (M) Sdn BHD": {
+      "total": 955.0,
+      "transactions": 1,
+      "average": 955.0
+    },
+    "THAI DELICIOUS RESTAURANT": {
+      "total": 951.0,
+      "transactions": 1,
+      "average": 951.0
+    },
+    "AEON CO ,": {
+      "total": 946.0,
+      "transactions": 1,
+      "average": 946.0
+    },
+    "kox2x": {
+      "total": 942.0,
+      "transactions": 1,
+      "average": 942.0
+    },
+    "FUN N CHEER (MALURD)": {
+      "total": 936.0,
+      "transactions": 1,
+      "average": 936.0
+    },
+    "#000002 BAiFu (M) Sdn Bhd": {
+      "total": 920.0,
+      "transactions": 1,
+      "average": 920.0
+    },
+    "COMPANY": {
+      "total": 897.0,
+      "transactions": 1,
+      "average": 897.0
+    },
+    "RESTAURANT": {
+      "total": 888.0,
+      "transactions": 1,
+      "average": 888.0
+    },
+    "99 SPEED Nart S/8 (519537-X)": {
+      "total": 888.0,
+      "transactions": 1,
+      "average": 888.0
+    },
+    "PASARAYA BORONG PINTAR": {
+      "total": 884.0,
+      "transactions": 1,
+      "average": 884.0
+    },
+    "KEDAI PAPAN YEW CHUAN": {
+      "total": 876.0,
+      "transactions": 1,
+      "average": 876.0
+    },
+    "Celke": {
+      "total": 876.0,
+      "transactions": 1,
+      "average": 876.0
+    },
+    "(EDAI BUKU NEW ACHEIVERS": {
+      "total": 864.0,
+      "transactions": 1,
+      "average": 864.0
+    },
+    "8ozs?2": {
+      "total": 863.0,
+      "transactions": 1,
+      "average": 863.0
+    },
+    "YHM_Keon Tebrau City": {
+      "total": 827.0,
+      "transactions": 1,
+      "average": 827.0
+    },
+    "POPULAR Bopk": {
+      "total": 825.0,
+      "transactions": 1,
+      "average": 825.0
+    },
+    "'ozos": {
+      "total": 817.0,
+      "transactions": 1,
+      "average": 817.0
+    },
+    "SWC ENTERPRISE SDN BAD": {
+      "total": 803.0,
+      "transactions": 1,
+      "average": 803.0
+    },
+    "99 SFEED Mart 5/8 (519537-X)": {
+      "total": 747.0,
+      "transactions": 1,
+      "average": 747.0
+    },
+    "BMC": {
+      "total": 432.0,
+      "transactions": 1,
+      "average": 432.0
+    },
+    "RESTORAN  HASSANBTSTRO": {
+      "total": 68.0,
+      "transactions": 1,
+      "average": 68.0
+    },
+    "GREEN LANE PHARMACY SIN BHD": {
+      "total": 67.0,
+      "transactions": 1,
+      "average": 67.0
+    },
+    "BHD": {
+      "total": 58.2,
+      "transactions": 1,
+      "average": 58.2
+    },
+    "UNIHAKKA INTERNATIONAL SDN BHD": {
+      "total": 20.0,
+      "transactions": 1,
+      "average": 20.0
+    },
+    "dsFr.": {
+      "total": 6.0,
+      "transactions": 1,
+      "average": 6.0
+    },
+    "epang Alaf Restaurants Sdn Bhd": {
+      "total": 6.0,
+      "transactions": 1,
+      "average": 6.0
+    },
+    "D.I,Y. (M) Sdn BHD": {
+      "total": 6.0,
+      "transactions": 1,
+      "average": 6.0
+    }
+  },
+  "max_single_transaction": 30032.0,
+  "min_single_transaction": 6.0
+}
