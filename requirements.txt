@@ -1,12 +1,9 @@
 streamlit==1.36.0
 easyocr==1.7.1
 opencv-python-headless==4.10.0.84
-
-numpy>=2.1.0
-pandas>=2.2.3
-
+numpy>=2.0
+pandas>=2.2
 pydantic==2.7.4
-matplotlib>=3.9.0
+matplotlib>=3.9
 Pillow==10.4.0
-
-torch==2.1.2
+torch>=2.9.0
